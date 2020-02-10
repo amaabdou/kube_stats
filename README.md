@@ -1,5 +1,4 @@
-Small utility to collect stats from kubernetes mutiple contexts
-
+Small utility to collect stats and information from kubernetes multiple contexts
 
 it used the default kubectl config to loop over all contexts and loads all pods infos       
 then exports it to different formats, like csv
