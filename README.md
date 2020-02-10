@@ -4,13 +4,17 @@ it used the default kubectl config to loop over all contexts and loads all pods 
 then exports it to different formats, like csv
 
 ## Usage
-Usage of /tmp/go-build373490543/b001/exe/kubecleanup:
+```
+Usage of :
   -gb string
         Group output values by [none,imageName] (default "imageName")
   -kc string
         kubectl config file location. (default "/home/amaabdou/.kube/config")
   -wr string
         Write to [console,json,csv] (default "console")
+```
+
+
 
 ## example
 
