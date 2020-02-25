@@ -3,20 +3,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
-	"net/http"
 )
 
-func WriteToHttpServerResponse(data PodsData) error {
+func WriteToHtmlServerResponse(data PodsData) error {
 	jsonData,err := json.Marshal(data.Data)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Handling incoming request ")
-		_,err := fmt.Fprint(w, `<html>
+	htmlPage := fmt.Sprint(`<html>
 			<head>
 				<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.20/css/jquery.dataTables.min.css">
 				<script src="https://code.jquery.com/jquery-3.3.1.js"></script>
@@ -32,21 +28,14 @@ func WriteToHttpServerResponse(data PodsData) error {
 					} );
 				</script>
 			`+
-			"" +
-			""+`
+		"" +
+		""+`
 			</head>
 			<body>
 					<table id="example" class="order-column dataTable" style="width:100%!" (missing)=""></table>
 			</body>
 		</html>`)
-		if err != nil {
-			log.Println("Could not handle request ", err)
-		}
-	})
-
-	log.Println("Listening on 8080 ...")
-	log.Fatal(http.ListenAndServe(":8080", nil))
-	return nil
+	return ioutil.WriteFile("./output.html", []byte(htmlPage), 0644)
 }
 
 func printHeaders(data PodsData) string {

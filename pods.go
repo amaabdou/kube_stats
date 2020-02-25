@@ -4,6 +4,7 @@ import (
 	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"log"
@@ -79,8 +80,6 @@ func GetPods(kubeconfigPath string) (PodsData, error) {
 			continue
 		}
 
-
-
 		for _, pod := range pods.Items {
 			for _, container := range pod.Spec.Containers {
 				imageAndVersion := strings.Split(container.Image, ":")
@@ -93,11 +92,13 @@ func GetPods(kubeconfigPath string) (PodsData, error) {
 				svcName := ""
 				ExternalIPs := ""
 				for _, service := range services.Items {
-					for _,selector := range service.Spec.Selector {
+					for _, selector := range service.Spec.Selector {
 						for _, label := range pod.ObjectMeta.Labels {
-							if label == selector {
-									svcName = svcName+service.Name
-									ExternalIPs = ExternalIPs+strings.Join(service.Spec.ExternalIPs, ",")
+							if label == selector && label!="" {
+								fmt.Println(label, selector)
+
+								svcName = svcName + service.Name
+								ExternalIPs = ExternalIPs + strings.Join(service.Spec.ExternalIPs, ",")
 							}
 						}
 					}
@@ -105,11 +106,15 @@ func GetPods(kubeconfigPath string) (PodsData, error) {
 
 				ingressUrl := ""
 				for _, ingress := range ingresses.Items {
-					if ingress.Spec.Backend.ServiceName == svcName {
-						for _,rule := range ingress.Spec.Rules {
+					if ingress.Spec.Backend != nil {
+						if ingress.Spec.Backend.ServiceName == svcName {
+							log.Println("Could not process ", ingress.Name," ", ingress)
+						}
+					}else {
+						for _, rule := range ingress.Spec.Rules {
 							for _, path := range rule.IngressRuleValue.HTTP.Paths {
 								if path.Backend.ServiceName == svcName {
-									ingressUrl = ingressUrl+fmt.Sprint(
+									ingressUrl = ingressUrl + fmt.Sprint(
 										rule.Host,
 										path.Path,
 									)
