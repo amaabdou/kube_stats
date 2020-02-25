@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -64,6 +65,22 @@ func GetPods(kubeconfigPath string) (PodsData, error) {
 			continue
 		}
 
+		services, err := clientset.CoreV1().Services("").List(metav1.ListOptions{})
+		if err != nil {
+			log.Println("Failed to get services for config ", kubeconfigPath, " , context ", loopedContextName)
+			log.Println(err.Error())
+			continue
+		}
+
+		ingresses, err := clientset.ExtensionsV1beta1().Ingresses("").List(metav1.ListOptions{})
+		if err != nil {
+			log.Println("Failed to get ingress for config ", kubeconfigPath, " , context ", loopedContextName)
+			log.Println(err.Error())
+			continue
+		}
+
+
+
 		for _, pod := range pods.Items {
 			for _, container := range pod.Spec.Containers {
 				imageAndVersion := strings.Split(container.Image, ":")
@@ -72,22 +89,58 @@ func GetPods(kubeconfigPath string) (PodsData, error) {
 				if len(imageAndVersion) > 1 {
 					imageVersion = imageAndVersion[1]
 				}
+
+				svcName := ""
+				ExternalIPs := ""
+				for _, service := range services.Items {
+					for _,selector := range service.Spec.Selector {
+						for _, label := range pod.ObjectMeta.Labels {
+							if label == selector {
+									svcName = svcName+service.Name
+									ExternalIPs = ExternalIPs+strings.Join(service.Spec.ExternalIPs, ",")
+							}
+						}
+					}
+				}
+
+				ingressUrl := ""
+				for _, ingress := range ingresses.Items {
+					if ingress.Spec.Backend.ServiceName == svcName {
+						for _,rule := range ingress.Spec.Rules {
+							for _, path := range rule.IngressRuleValue.HTTP.Paths {
+								if path.Backend.ServiceName == svcName {
+									ingressUrl = ingressUrl+fmt.Sprint(
+										rule.Host,
+										path.Path,
+									)
+								}
+							}
+						}
+					}
+				}
+
 				podsData.Data = append(podsData.Data, []string{
 					imageName,
 					imageVersion,
 					pod.Name,
 					pod.Namespace,
 					loopedContextName,
+					svcName,
+					ExternalIPs,
+					ingressUrl,
 				})
 			}
 		}
 	}
 	podsData.Headers = []string{
-		"Container name",
-		"Container tag",
-		"Pod Name",
-		"Namespace",
+		"Cont. name",
+		"Cont. tag",
+		"PO Name",
+		"NS",
 		"Context",
+		"Svc-name",
+		"ExternalIPs",
+		"Ingress",
 	}
 
 	return podsData, nil

@@ -12,7 +12,7 @@ import (
 )
 
 func ListAvailableWriters() []string {
-	return []string{"console", "json", "csv"}
+	return []string{"console", "json", "csv", "httpserver"}
 }
 
 func GetDefaultWriter() string  {
@@ -21,6 +21,8 @@ func GetDefaultWriter() string  {
 
 func Write(WriterName string, dataset PodsData) error  {
 	switch WriterName {
+		case "httpserver":
+			return writeToHttpServer(dataset)
 		case "console":
 			return writeToConsole(dataset)
 		case "json":
@@ -30,6 +32,10 @@ func Write(WriterName string, dataset PodsData) error  {
 	}
 
 	return errors.New(fmt.Sprintf("Something went very wrong, give sort-by [%s] not exist in [%s]", WriterName, strings.Join(ListAvailableWriters(), ",")))
+}
+
+func writeToHttpServer(data PodsData) error {
+	return WriteToHttpServerResponse(data)
 }
 
 func writeCSV(dataset PodsData) error {
