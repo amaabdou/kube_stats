@@ -90,34 +90,45 @@ func GetPods(kubeconfigPath string) (PodsData, error) {
 				}
 
 				svcName := ""
-				ExternalIPs := ""
+				LoadBalancerIP := ""
+				ingressUrl := ""
 				for _, service := range services.Items {
-					for _, selector := range service.Spec.Selector {
-						for _, label := range pod.ObjectMeta.Labels {
-							if label == selector && label!="" {
-								fmt.Println(label, selector)
+					if service.Namespace != pod.Namespace {
+						continue
+					}
 
-								svcName = svcName + service.Name
-								ExternalIPs = ExternalIPs + strings.Join(service.Spec.ExternalIPs, ",")
+					selectorCount := 0
+					for selectorName, selectorValue := range service.Spec.Selector {
+						for labelName, labelValue := range pod.ObjectMeta.Labels {
+							if labelName==selectorName && labelValue==selectorValue  {
+								selectorCount = selectorCount+1
 							}
 						}
 					}
-				}
 
-				ingressUrl := ""
-				for _, ingress := range ingresses.Items {
-					if ingress.Spec.Backend != nil {
-						if ingress.Spec.Backend.ServiceName == svcName {
-							log.Println("Could not process ", ingress.Name," ", ingress)
-						}
-					}else {
-						for _, rule := range ingress.Spec.Rules {
-							for _, path := range rule.IngressRuleValue.HTTP.Paths {
-								if path.Backend.ServiceName == svcName {
-									ingressUrl = ingressUrl + fmt.Sprint(
-										rule.Host,
-										path.Path,
-									)
+					if selectorCount==len(service.Spec.Selector) {
+						svcName = svcName + " " + service.Name
+						LoadBalancerIP = LoadBalancerIP + " "+ service.Spec.LoadBalancerIP
+
+						for _, ingress := range ingresses.Items {
+							if ingress.Namespace != pod.Namespace {
+								continue
+							}
+
+							if ingress.Spec.Backend != nil {
+								if ingress.Spec.Backend.ServiceName == service.Name {
+									log.Println("Could not process ", ingress.Name," ", ingress)
+								}
+							}else {
+								for _, rule := range ingress.Spec.Rules {
+									for _, path := range rule.IngressRuleValue.HTTP.Paths {
+										if path.Backend.ServiceName == service.Name {
+											ingressUrl = ingressUrl + " "+ fmt.Sprint(
+												rule.Host,
+												path.Path,
+											)
+										}
+									}
 								}
 							}
 						}
@@ -125,26 +136,28 @@ func GetPods(kubeconfigPath string) (PodsData, error) {
 				}
 
 				podsData.Data = append(podsData.Data, []string{
+					pod.Name,
 					imageName,
 					imageVersion,
 					pod.Name,
 					pod.Namespace,
 					loopedContextName,
 					svcName,
-					ExternalIPs,
+					LoadBalancerIP,
 					ingressUrl,
 				})
 			}
 		}
 	}
 	podsData.Headers = []string{
+		"PodName",
 		"Cont. name",
 		"Cont. tag",
 		"PO Name",
 		"NS",
 		"Context",
 		"Svc-name",
-		"ExternalIPs",
+		"LoadBalancerIP",
 		"Ingress",
 	}
 
